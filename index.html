@@ -160,10 +160,65 @@
       }
     }
 
-    /* Keep header non-sticky on small screens */
+    /* Mobile header: sticky + liquid glass + smooth shrink */
     @media (max-width: 640px){
-      header{ position: static; top:auto; }
+      header{
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        padding: 10px 12px; /* a touch more to smooth the transition */
+        border-bottom: 1px solid var(--border);
+
+        /* liquid glass */
+        background-color: rgba(255,255,255,0.35);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+
+        /* smoother animation */
+        transition:
+          padding .28s cubic-bezier(.25,.8,.25,1),
+          background-color .28s cubic-bezier(.25,.8,.25,1),
+          backdrop-filter .28s cubic-bezier(.25,.8,.25,1),
+          -webkit-backdrop-filter .28s cubic-bezier(.25,.8,.25,1),
+          border-color .28s ease,
+          box-shadow .28s ease;
+        will-change: padding, backdrop-filter, background-color;
+      }
+      /* dark mode glass */
+      @media (prefers-color-scheme: dark){
+        header{
+          background-color: rgba(18,18,18,0.35);
+          border-bottom-color: rgba(255,255,255,0.08);
+        }
+      }
+
+      /* hide subheader on mobile */
+      header .sub{ display:none; }
+
+      /* base sizes at top */
+      header .brand{ width:34px; height:34px; transition: width .28s, height .28s; }
+      header .brand .material-symbols-rounded{ font-size:20px; transition: font-size .28s; }
+      header h1{ font-size:16px; transition: font-size .28s; }
+
+      /* scrolled (compact) */
+      header.scrolled{
+        padding: 6px 10px;
+        background-color: rgba(255,255,255,0.6);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+      }
+      @media (prefers-color-scheme: dark){
+        header.scrolled{
+          background-color: rgba(18,18,18,0.6);
+          box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+        }
+      }
+      header.scrolled .brand{ width:28px; height:28px; }
+      header.scrolled .brand .material-symbols-rounded{ font-size:18px; }
+      header.scrolled h1{ font-size:15px; }
     }
+
 
 
     /* Footer link */
