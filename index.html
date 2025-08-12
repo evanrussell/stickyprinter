@@ -168,12 +168,18 @@
       <div class="card">
         <details id="inst" style="font-size:13px;color:var(--muted);line-height:1.5" closed>
           <summary style="cursor:pointer;font-weight:800;color:var(--ink)">Instructions</summary>
-          <ol style="margin:8px 0 0 18px;padding:0">
-            <li>Start with 6 sticky notes. Add more with <strong>+ Sticky Note</strong> (up to 300 / 50 pages).</li>
-            <li>Leave size on <strong>Auto</strong> or pick a size. Each size has a max character count.</li>
-            <li>Print at <strong>Actual size / 100%</strong> with <strong>Margins: None</strong>.</li>
-            <li>CSV import: each cell becomes one sticky note (row‑major). You can omit the first row.</li>
-          </ol>
+          <ul id="instList" style="margin:8px 0 0 18px;padding:0">
+            <li>Type your sticky notes here, or upload a CSV (each cell becomes one note).</li>
+            <li>Select <strong>Generate PDF</strong> to make your printable notes file.</li>
+            <li>
+              Download and print the <a href="/templates/3x3-sticky-placement.pdf" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">placement guide</a>.
+              You’ll need <strong><span id="guidesCount">1</span> placement guide(s)</strong> for your 
+              <span id="notesSoFar">0</span> notes.
+            </li>
+            <li>Stick your 3×3" sticky notes inside the boxes on the placement guide.</li>
+            <li>Put those guide pages into your printer’s paper tray or bypass tray. Test print a single page to make sure the orientation is correct.</li>
+            <li>Print your generated PDF and enjoy your crisply printed sticky notes!</li>
+          </ul>
         </details>
       </div>
     </div>
@@ -221,9 +227,15 @@
   const LIMITS={"20":72,"24":56,"32":30,"36":20,"auto":72};
   const MAX_NOTES=300;
 
-  const notesEl=document.getElementById('notes'); const countMeta=document.getElementById('countMeta'); const inputs=[]; let adderEl=null;
+  // --- UI state ---
+  const notesEl=document.getElementById('notes');
+  const countMeta=document.getElementById('countMeta');
+  const guidesCountEl=document.getElementById('guidesCount');
+  const notesSoFarEl=document.getElementById('notesSoFar');
+  const inputs=[]; let adderEl=null;
   let alignMode='center';
 
+  // segmented control
   const segA=document.getElementById('alignSeg');
   segA.querySelectorAll('button').forEach(btn=>{
     btn.addEventListener('click',()=>{
@@ -233,7 +245,18 @@
     });
   });
 
-  function updateCountMeta(){ countMeta.textContent = `${inputs.length} / ${MAX_NOTES} notes`; }
+  function updateGuidesHint(){
+    const n=inputs.length;
+    const pages=Math.ceil(n/6)||0;
+    guidesCountEl.textContent=pages;
+    notesSoFarEl.textContent=n;
+  }
+
+  function updateCountMeta(){
+    countMeta.textContent = `${inputs.length} / ${MAX_NOTES} notes`;
+    updateGuidesHint();
+  }
+
   function renumber(){ inputs.forEach((n,i)=> n.numEl.textContent=`#${i+1}`); updateCountMeta(); }
   function currentCharLimit(){ return LIMITS[document.getElementById('size').value]||72; }
   function autoResizeTA(ta){ ta.style.height='auto'; ta.style.height=(ta.scrollHeight)+'px'; }
@@ -282,11 +305,14 @@
     clearCsvSelection();
   }
 
+  // init
   for(let i=0;i<6;i++) addNote(''); placeAdder();
 
+  // header actions
   document.getElementById('deleteAll').addEventListener('click',clearToSixBlank);
   document.getElementById('createSample').addEventListener('click',()=>{ removeAllNotes(); for(let i=1;i<=12;i++) addNote(`Sample note #${i}`); placeAdder(); });
 
+  // size change
   document.getElementById('size').addEventListener('change',()=>{
     const limit=currentCharLimit();
     inputs.forEach(n=>{
@@ -297,8 +323,9 @@
     });
   });
 
+  // CSV preview / load
   const csvInput=document.getElementById('csv');
-  const fileArea=document.getElementById('fileArea');
+  const fileArea=document.getElementById('fileArea'); // single-line region for filename OR success
   const loadBtn=document.getElementById('loadCsv');
   const loadStatus=document.getElementById('loadStatus');
 
@@ -351,6 +378,7 @@
 
     Papa.parse(file,{
       complete:(res)=>{
+        // Omit entire first row if requested
         const rows = Array.isArray(res.data) ? res.data.slice() : [];
         if(omit && rows.length){ rows.shift(); }
 
@@ -371,6 +399,7 @@
     });
   });
 
+  // Generate PDF
   document.getElementById('gen').addEventListener('click',async()=>{
     const { PDFDocument, StandardFonts } = PDFLib;
     const pdf=await PDFDocument.create();
@@ -427,6 +456,9 @@
     const bytes=await pdf.save(); const blob=new Blob([bytes],{type:'application/pdf'});
     const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='sticky-notes.pdf'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),10000);
   });
+
+  // Keep the guides count accurate at init
+  updateGuidesHint();
   </script>
 </body>
 </html>
