@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Sticky Note PDF Generator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Favicon: official Material 'note_stack' path, white on black -->
+  <link rel="icon" type="image/svg+xml"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23000'/%3E%3Csvg x='8' y='8' width='48' height='48' viewBox='0 -960 960 960' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill='%23FFFFFF' d='M280-160v-441q0-33 24-56t57-23h439q33 0 56.5 23.5T880-600v320L680-80H360q-33 0-56.5-23.5T280-160ZM81-710q-6-33 13-59.5t52-32.5l434-77q33-6 59.5 13t32.5 52l10 54h-82l-7-40-433 77 40 226v279q-16-9-27.5-24T158-276L81-710Zm279 110v440h280v-160h160v-280H360Zm220 220Z'/%3E%3C/svg%3E%3C/svg%3E" />
+
+  <!-- Inter SemiBold + Material Symbols -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded" />
+  <style>
+    :root{
+      --bg:#fff;--panel:#f7f7f9;--ink:#0a0a0a;--muted:#666a73;--blue:#2563eb;--blue-dark:#3b82f6;
+      --red:#dc2626;--green:#059669;--border:#e7e7ee;--input:#fff
+    }
+    @media (prefers-color-scheme: dark){
+      :root{--bg:#0a0a0a;--panel:#111214;--ink:#f3f4f6;--muted:#a1a1aa;--blue:var(--blue-dark);--border:#23262d;--input:#0f1115}
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Inter",sans-serif}
+    header{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;background:linear-gradient(180deg,#0000,var(--bg))}
+    .brand{width:40px;height:40px;display:grid;place-items:center}
+    .brand .material-symbols-rounded{font-size:24px;color:var(--ink)}
+    .head{display:flex;flex-direction:column}
+    h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.2px}
+    .sub{color:var(--muted);font-size:13px;margin-top:2px}
+
+    .wrap{display:grid;grid-template-columns:340px 1fr;gap:16px;padding:16px;align-items:start}
+    @media (max-width:980px){.wrap{grid-template-columns:1fr}}
+    .stack{display:grid;gap:12px;align-content:start}
+    .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;align-self:start}
+    .card h2{font-size:14px;margin:0 0 10px;letter-spacing:.2px}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+    label{font-size:13px;color:var(--muted)}
+    select{background:var(--input);color:var(--ink);border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:14px;outline:none}
+
+    /* Buttons */
+    button.primary{
+      border:1px solid transparent;padding:10px 14px;border-radius:10px;cursor:pointer;background:var(--blue);color:#fff;font-weight:700;font-size:14px;
+      display:inline-flex;align-items:center;gap:8px;justify-content:center
+    }
+    button.primary[disabled]{opacity:.55;cursor:not-allowed}
+    button.secondary{
+      background:#f3f3f5;color:#444;border:1px solid #d9d9df;border-radius:10px;padding:10px 14px;font-weight:700;font-size:14px;cursor:pointer
+    }
+    @media (prefers-color-scheme: dark){
+      button.secondary{background:#1a1b1e;color:#e5e7eb;border-color:#2a2d33}
+    }
+    button.secondary[disabled]{opacity:.55;cursor:not-allowed}
+
+    /* File upload */
+    .file-upload{position:relative;display:inline-block}
+    .file-upload input[type="file"]{position:absolute;left:0;top:0;opacity:0;width:100%;height:100%;cursor:pointer}
+    .file-upload label{background:var(--input);border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:14px;color:var(--ink);cursor:pointer;display:inline-block}
+    #fileArea{display:block;margin-top:4px}
+    #loadStatus{display:none;margin-top:4px}
+    .file-name{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+    .file-clear{
+      background:transparent;border:none;padding:0;margin:0;cursor:pointer;display:inline-grid;place-items:center;
+      width:18px;height:18px;border-radius:4px;color:var(--red);appearance:none;-webkit-appearance:none;
+    }
+    .file-clear:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+
+    /* Small text buttons in notes header */
+    .mini{background:transparent;border:none;padding:0;font:inherit;cursor:pointer;font-weight:600;font-size:13px;letter-spacing:.2px;color:var(--muted)}
+    .mini.danger{color:var(--red)}
+
+    /* Segmented control (32x28, 16px icons) */
+    .segA{display:inline-flex;gap:3px;padding:3px;border-radius:10px;background:#f7f7f7;border:1px solid #d9d9d9}
+    @media (prefers-color-scheme: dark){ .segA{background:#141518;border-color:#2a2d33} }
+    .segA button{display:inline-grid;place-items:center;width:32px;height:28px;border-radius:8px;border:1px solid transparent;background:transparent;color:#6b6b6b;cursor:pointer}
+    .segA button.active{background:#cfcfcf;border-color:#bdbdbd;color:#111}
+    .segA button:hover{background:#efefef;color:#111}
+    .segA .material-symbols-rounded{font-size:16px}
+    .segA button:focus-visible{outline:2px solid #9a9a9a;outline-offset:2px}
+
+    .card-header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+    .card-header-right{display:flex;gap:14px;align-items:center}
+    .notes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    @media (max-width:980px){.notes{grid-template-columns:1fr 1fr}}
+    @media (max-width:640px){.notes{grid-template-columns:1fr}}
+    .note{display:grid;gap:6px;padding:10px;border:1px dashed var(--border);border-radius:10px;background:var(--input)}
+    .note textarea{
+      width:100%;min-height:38px;resize:none;overflow:hidden;background:var(--bg);color:var(--ink);
+      border:1px solid var(--border);border-radius:8px;padding:8px;font-size:14px;line-height:1.4
+    }
+    .note-meta{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted)}
+    .ok{color:var(--muted)} .warn{color:var(--red)}
+    .adder{display:grid;place-items:center;padding:16px;min-height:72px;border-radius:10px;border:1px dashed var(--border);background:var(--input);cursor:pointer}
+    .adder button{background:transparent;border:none;padding:0;font:inherit;color:var(--muted);font-weight:800;font-size:13px;letter-spacing:.2px;cursor:pointer}
+    .foot{display:flex;gap:10px;justify-content:space-between;border-top:1px solid var(--border);padding-top:12px;margin-top:12px}
+
+    .gen-row{grid-column:1 / -1;display:flex}
+    .gen-row .primary{width:100%}
+
+    hr{border:0;border-top:1px solid var(--border);margin:12px 0 0}
+    footer{padding:14px 16px}
+    @media (min-width:1024px){ footer{padding-left:32px;padding-right:32px} }
+    footer .row{display:flex;justify-content:space-between;align-items:center;margin:0}
+    .mini-brand{width:28px;height:28px;display:grid;place-items:center}
+    .mini-brand .material-symbols-rounded{font-size:18px;color:var(--ink)}
+    .footer-text{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px}
+    .footer-strong{font-weight:600;color:var(--ink)}
+    .success{font-size:13px;color:var(--green);font-weight:700}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="material-symbols-rounded" aria-hidden="true">note_stack</span></div>
+    <div class="head">
+      <h1>Sticky Note PDF Generator</h1>
+      <div class="sub">Generate printable PDF templates for 3x3" sticky notes. Create each note individually or import multiple notes via CSV file.</div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <!-- Left column -->
+    <div class="stack">
+      <div class="card">
+        <h2>Settings</h2>
+        <div class="row">
+          <label for="size">Text size</label>
+          <select id="size">
+            <option value="20">Small (20pt)</option>
+            <option value="24">Standard (24pt)</option>
+            <option value="32">Big (32pt)</option>
+            <option value="36">Huge (36pt)</option>
+            <option value="auto" selected>Auto (largest possible)</option>
+          </select>
+        </div>
+        <div class="row" style="align-items:center">
+          <span style="font-size:13px;color:var(--muted);">Text align</span>
+          <div class="segA" id="alignSeg" role="group" aria-label="Text alignment">
+            <button type="button" aria-pressed="false" data-value="left"  title="Left"><span class="material-symbols-rounded">format_align_left</span></button>
+            <button type="button" aria-pressed="true"  data-value="center" title="Center" class="active"><span class="material-symbols-rounded">format_align_center</span></button>
+            <button type="button" aria-pressed="false" data-value="right" title="Right"><span class="material-symbols-rounded">format_align_right</span></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>CSV Import</h2>
+        <div class="row">
+          <div class="file-upload">
+            <label for="csv">Choose CSV file</label>
+            <input type="file" id="csv" accept=".csv,text/csv" />
+          </div>
+          <span id="fileArea" aria-live="polite"></span>
+        </div>
+        <div class="row"><label><input type="checkbox" id="omitHeader" /> Omit first row</label></div>
+
+        <div class="row" id="loadControls">
+          <button id="loadCsv" class="secondary" disabled title="Choose a CSV file to enable loading">Load CSV</button>
+          <span id="loadStatus" class="success"></span>
+        </div>
+      </div>
+
+      <!-- Generate button (full width + icon) -->
+      <div class="gen-row">
+        <button id="gen" class="primary"><span class="material-symbols-rounded" aria-hidden="true">download</span>Generate PDF</button>
+      </div>
+
+      <div class="card">
+        <details id="inst" style="font-size:13px;color:var(--muted);line-height:1.5" closed>
+          <summary style="cursor:pointer;font-weight:800;color:var(--ink)">Instructions</summary>
+          <ol style="margin:8px 0 0 18px;padding:0">
+            <li>Start with 6 sticky notes. Add more with <strong>+ Sticky Note</strong> (up to 300 / 50 pages).</li>
+            <li>Leave size on <strong>Auto</strong> or pick a size. Each size has a max character count.</li>
+            <li>Print at <strong>Actual size / 100%</strong> with <strong>Margins: None</strong>.</li>
+            <li>CSV import: each cell becomes one sticky note (row‑major). You can omit the first row.</li>
+          </ol>
+        </details>
+      </div>
+    </div>
+
+    <!-- Right column -->
+    <div class="card" style="align-self:start">
+      <div class="card-header">
+        <h2 style="margin:0;">Sticky Notes</h2>
+        <div class="card-header-right">
+          <button id="createSample" class="mini">Create sample</button>
+          <button id="deleteAll" class="mini danger">Delete all</button>
+        </div>
+      </div>
+
+      <div class="notes" id="notes"></div>
+
+      <div class="foot">
+        <span style="font-size:12px;color:var(--muted);" id="countMeta">0 / 300 notes</span>
+      </div>
+    </div>
+  </div>
+
+  <hr>
+  <footer>
+    <div class="row">
+      <div class="footer-text">
+        <div class="mini-brand"><span class="material-symbols-rounded" aria-hidden="true">note_stack</span></div>
+        <span class="footer-strong">stickyprinter.app</span>
+      </div>
+      <span></span>
+    </div>
+  </footer>
+
+  <!-- libs -->
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <script>
+  const PT=72,PAGE={w:8.5*PT,h:11*PT},MARGINS={top:36,bottom:36,left:54,right:54},STICKY={w:3*PT,h:3*PT},GAP={col:72,row:36},INNER_PAD=10;
+  function slotRects(){
+    const xs=[MARGINS.left,MARGINS.left+STICKY.w+GAP.col];
+    const ys=[MARGINS.bottom,MARGINS.bottom+STICKY.h+GAP.row,MARGINS.bottom+(STICKY.h+GAP.row)*2];
+    const rects=[]; for(let r=2;r>=0;r--){ for(let c=0;c<2;c++){ rects.push({x:xs[c],y:ys[r],w:STICKY.w,h:STICKY.h}); } } return rects;
+  }
+  const LIMITS={"20":72,"24":56,"32":30,"36":20,"auto":72};
+  const MAX_NOTES=300;
+
+  const notesEl=document.getElementById('notes'); const countMeta=document.getElementById('countMeta'); const inputs=[]; let adderEl=null;
+  let alignMode='center';
+
+  const segA=document.getElementById('alignSeg');
+  segA.querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      segA.querySelectorAll('button').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-pressed','false')});
+      btn.classList.add('active'); btn.setAttribute('aria-pressed','true');
+      alignMode=btn.dataset.value;
+    });
+  });
+
+  function updateCountMeta(){ countMeta.textContent = `${inputs.length} / ${MAX_NOTES} notes`; }
+  function renumber(){ inputs.forEach((n,i)=> n.numEl.textContent=`#${i+1}`); updateCountMeta(); }
+  function currentCharLimit(){ return LIMITS[document.getElementById('size').value]||72; }
+  function autoResizeTA(ta){ ta.style.height='auto'; ta.style.height=(ta.scrollHeight)+'px'; }
+
+  function createAdder(){
+    const card=document.createElement('div'); card.className='adder';
+    const btn=document.createElement('button'); btn.type='button'; btn.textContent='+ Sticky Note';
+    const add=()=>addNote('');
+    btn.addEventListener('click',add);
+    card.addEventListener('click', (e)=>{ if(e.target!==btn) add(); }); // whole container clickable
+    card.appendChild(btn);
+    return card;
+  }
+  function placeAdder(){
+    if(!adderEl) adderEl=createAdder();
+    if(adderEl.parentNode) adderEl.parentNode.removeChild(adderEl);
+    if(inputs.length<MAX_NOTES) notesEl.appendChild(adderEl);
+  }
+
+  function addNote(value=''){
+    if(inputs.length>=MAX_NOTES) return;
+    const wrap=document.createElement('div'); wrap.className='note';
+    const ta=document.createElement('textarea');
+    ta.placeholder=`Sticky note ${inputs.length+1}`; ta.value=value; ta.maxLength=currentCharLimit(); autoResizeTA(ta);
+
+    const meta=document.createElement('div'); meta.className='note-meta';
+    const num=document.createElement('span'); const cnt=document.createElement('span');
+    num.textContent=`#${inputs.length+1}`;
+    cnt.textContent=`${(value||'').length} / ${currentCharLimit()}`; cnt.className=((value||'').length>=currentCharLimit())?'warn':'ok';
+    meta.appendChild(num); meta.appendChild(cnt);
+
+    ta.addEventListener('input',()=>{
+      ta.maxLength=currentCharLimit(); autoResizeTA(ta);
+      const n=ta.value.length, max=ta.maxLength; cnt.textContent=`${n} / ${max}`; cnt.className=(n>=max)?'warn':'ok';
+    });
+
+    const node={wrap,input:ta,countEl:cnt,numEl:num};
+    wrap.appendChild(ta); wrap.appendChild(meta); notesEl.appendChild(wrap);
+    inputs.push(node); ta.dispatchEvent(new Event('input')); renumber(); placeAdder();
+  }
+
+  function removeAllNotes(){ inputs.forEach(n=>n.wrap.remove()); inputs.length=0; updateCountMeta(); }
+  function clearToSixBlank(){
+    removeAllNotes(); for(let i=0;i<6;i++) addNote('');
+    placeAdder();
+    clearCsvSelection();
+  }
+
+  for(let i=0;i<6;i++) addNote(''); placeAdder();
+
+  document.getElementById('deleteAll').addEventListener('click',clearToSixBlank);
+  document.getElementById('createSample').addEventListener('click',()=>{ removeAllNotes(); for(let i=1;i<=12;i++) addNote(`Sample note #${i}`); placeAdder(); });
+
+  document.getElementById('size').addEventListener('change',()=>{
+    const limit=currentCharLimit();
+    inputs.forEach(n=>{
+      n.input.maxLength=limit;
+      if(n.input.value.length>limit) n.input.value=n.input.value.slice(0,limit);
+      const len=n.input.value.length; n.countEl.textContent=`${len} / ${limit}`; n.countEl.className=(len>=limit)?'warn':'ok';
+      autoResizeTA(n.input);
+    });
+  });
+
+  const csvInput=document.getElementById('csv');
+  const fileArea=document.getElementById('fileArea');
+  const loadBtn=document.getElementById('loadCsv');
+  const loadStatus=document.getElementById('loadStatus');
+
+  function showFilenameLine(file){
+    fileArea.style.display='block';
+    loadStatus.style.display='none';
+    fileArea.innerHTML = '';
+    if(!file) return;
+    const nameWrap=document.createElement('span'); nameWrap.className='file-name';
+    const nameText=document.createElement('span'); nameText.textContent=file.name;
+    const clearBtn=document.createElement('button');
+    clearBtn.type='button'; clearBtn.className='file-clear'; clearBtn.title='Remove file';
+    clearBtn.innerHTML = "<span class='material-symbols-rounded' aria-hidden='true' style='font-size:16px'>close_small</span>";
+    clearBtn.addEventListener('click', clearCsvSelection);
+    nameWrap.appendChild(nameText); nameWrap.appendChild(clearBtn);
+    fileArea.appendChild(nameWrap);
+  }
+
+  function showSuccessMessage(fileName, addedCount){
+    fileArea.style.display='none';
+    loadStatus.textContent = `✓ ${fileName} loaded — ${addedCount} notes added`;
+    loadStatus.style.display = 'block';
+  }
+
+  function resetLoadUI(){
+    loadStatus.style.display='none'; loadStatus.textContent='';
+    loadBtn.disabled = !(csvInput.files && csvInput.files.length);
+    const file = csvInput.files && csvInput.files[0];
+    if(file){ showFilenameLine(file); } else { fileArea.style.display='none'; fileArea.innerHTML=''; }
+  }
+
+  function clearCsvSelection(){
+    csvInput.value = '';
+    fileArea.style.display='none'; fileArea.innerHTML='';
+    loadStatus.style.display='none'; loadStatus.textContent='';
+    loadBtn.disabled = true;
+  }
+
+  csvInput.addEventListener('change',()=>{
+    const file=csvInput.files && csvInput.files[0];
+    if(file){ showFilenameLine(file); }
+    else { clearCsvSelection(); }
+    loadBtn.disabled = !file;
+  });
+
+  loadBtn.addEventListener('click',()=>{
+    const file=csvInput.files && csvInput.files[0];
+    const omit=document.getElementById('omitHeader').checked;
+    if(!file) return;
+
+    Papa.parse(file,{
+      complete:(res)=>{
+        const rows = Array.isArray(res.data) ? res.data.slice() : [];
+        if(omit && rows.length){ rows.shift(); }
+
+        const flat=[];
+        for(const row of rows){
+          const arr = Array.isArray(row) ? row : [row];
+          for(const cell of arr){ flat.push((cell??'').toString().trim()); }
+        }
+
+        const sliced=flat.slice(0,MAX_NOTES);
+        removeAllNotes(); const count=Math.max(6, sliced.length);
+        for(let i=0;i<count;i++) addNote(sliced[i]??''); placeAdder();
+
+        const added=Math.min(sliced.length,MAX_NOTES);
+        showSuccessMessage(file.name, added);
+      },
+      error:(err)=>alert('CSV parse error: '+err)
+    });
+  });
+
+  document.getElementById('gen').addEventListener('click',async()=>{
+    const { PDFDocument, StandardFonts } = PDFLib;
+    const pdf=await PDFDocument.create();
+    const interBytes=await fetch("https://fonts.gstatic.com/s/inter/v13/UcCO3Fwr0Cwy8O4N4t6hlvZrQ4Y.woff2").then(r=>r.arrayBuffer()).catch(()=>null);
+    let font=null; if(interBytes){ try{ font=await pdf.embedFont(interBytes,{subset:true}); } catch{ font=await pdf.embedFont(StandardFonts.HelveticaBold); } }
+    else { font=await pdf.embedFont(StandardFonts.HelveticaBold); }
+
+    const sizeSel=document.getElementById('size').value; const rects=slotRects();
+    const all=inputs.map(n=>n.input.value);
+
+    function wrapParagraph(text,font,fontSize,maxWidth){
+      const words=(text||'').toString().split(/\s+/); const lines=[]; let line='';
+      for(const w of words){ const test=line?line+' '+w:w; const width=font.widthOfTextAtSize(test,fontSize);
+        if(width<=maxWidth) line=test;
+        else{ if(line) lines.push(line);
+          if(font.widthOfTextAtSize(w,fontSize)>maxWidth){ let cur=''; for(const ch of w){ if(font.widthOfTextAtSize(cur+ch,fontSize)<=maxWidth) cur+=ch; else{ if(cur) lines.push(cur); cur=ch; } } line=cur; }
+          else line=w;
+        }
+      } if(line) lines.push(line); return lines;
+    }
+    function wrapTextByWidthPreserveBreaks(text,font,fontSize,maxWidth){
+      const paras=(text||'').toString().split(/\r?\n/); const out=[];
+      paras.forEach((p,i)=>{ out.push(...wrapParagraph(p,font,fontSize,maxWidth)); if(i<paras.length-1) out.push(''); }); return out;
+    }
+    function fitsBox(text,font,fontSize){
+      const boxW=STICKY.w-INNER_PAD*2, boxH=STICKY.h-INNER_PAD*2; const lines=wrapTextByWidthPreserveBreaks(text,font,fontSize,boxW); const lh=fontSize*1.2; return (lines.length*lh)<=boxH;
+    }
+    function pickAutoSize(text,font){
+      const order=[36,32,24,20]; const t=(text||'').toString().slice(0,72);
+      for(const fs of order) if(fitsBox(t,font,fs)) return {size:fs,text:t}; return {size:20,text:t};
+    }
+
+    for(let i=0;i<all.length;i+=6){
+      const page=pdf.addPage([PAGE.w,PAGE.h]); const notes=all.slice(i,i+6);
+      notes.forEach((text,idx)=>{
+        const box=rects[idx]; let t=(text??'').toString(); if(t.length===0) return;
+        let fs=sizeSel==='auto'?null:parseInt(sizeSel,10);
+        const cap=LIMITS[sizeSel]||72; t=t.slice(0,cap);
+        if(sizeSel==='auto'){ const pick=pickAutoSize(t,font); fs=pick.size; t=pick.text; }
+        if(sizeSel!=='auto' && !fitsBox(t,font,fs)){ for(const tryFs of [36,32,24,20]){ if(tryFs<=fs && fitsBox(t,font,tryFs)){ fs=tryFs; break; } } }
+
+        const boxW=box.w-INNER_PAD*2; const lines=wrapTextByWidthPreserveBreaks(t,font,fs,boxW); const lh=fs*1.2;
+        if(alignMode==='center'){
+          const totalH=lines.length*lh; const yStart=box.y+(box.h-totalH)/2+(lines.length-1)*lh;
+          lines.forEach((ln,k)=>{ const w=font.widthOfTextAtSize(ln,fs); const x=box.x+(box.w-w)/2; const y=yStart-k*lh; page.drawText(ln,{x,y,size:fs,font}); });
+        } else if(alignMode==='left'){
+          let y=box.y+box.h-INNER_PAD-fs; const x=box.x+INNER_PAD; lines.forEach((ln,k)=>{ page.drawText(ln,{x,y:y-k*lh,size:fs,font}); });
+        } else {
+          let y=box.y+box.h-INNER_PAD-fs; lines.forEach((ln,k)=>{ const w=font.widthOfTextAtSize(ln,fs); const x=box.x+box.w-INNER_PAD-w; const yy=y-k*lh; page.drawText(ln,{x,y:yy,size:fs,font}); });
+        }
+      });
+    }
+
+    const bytes=await pdf.save(); const blob=new Blob([bytes],{type:'application/pdf'});
+    const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='sticky-notes.pdf'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),10000);
+  });
+  </script>
+</body>
+</html>
