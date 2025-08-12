@@ -271,6 +271,124 @@
     #sizeRow, #alignRow {
       gap: 6px; /* space between label and control */
     }
+    
+    /* Sticky note size selector */
+    .noteSize {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .noteSize h3 {
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.3;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .noteSize .opts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    /* Option tiles - static like segmented buttons */
+    .noteOpt {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      border-radius: 4px;
+      cursor: pointer;
+      user-select: none;
+      border: 1px solid var(--border);
+      background: #141518;
+      color: #fff;
+      padding: 8px;
+      min-height: 64px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1.3;
+    }
+
+    /* Main label */
+    .noteOpt strong {
+      font-size: 13px;
+      font-weight: 600; /* match "Small"/"Auto" labels */
+    }
+
+    /* Sub-label (pt size) */
+    .noteOpt span {
+      font-size: 12px;
+      font-weight: 400;
+    }
+
+    .noteOpt.x3x3 { width: 64px;  height: 64px; }
+    .noteOpt.x3x5 { width: 106px; height: 64px; }
+    .noteOpt.x4x4 { width: 85px;  height: 85px; }
+    .noteOpt.x4x6 { width: 128px; height: 85px; }
+
+    /* Active state */
+    .noteOpt[aria-pressed="true"] {
+      background: #cfcfcf;
+      color: #111;
+      border-color: #bdbdbd;
+    }
+
+    /* Light theme adjustment */
+    @media (prefers-color-scheme: light) {
+      .noteOpt:not([aria-pressed="true"]) {
+        background: #f3f4f7;
+        color: var(--ink);
+        border-color: var(--border);
+      }
+    }
+
+    /* Small screens: keep tiles readable */
+    @media (max-width: 480px) {
+      .noteOpt.x4x6 { width: 116px; height: 78px; }
+      .noteOpt.x4x4 { width: 78px;  height: 78px; }
+      .noteOpt.x3x5 { width: 98px;  height: 58px; }
+      .noteOpt.x3x3 { width: 60px;  height: 60px; }
+    }
+    /* 1) Make entry fields 16px (prevents iOS zoom, nicer legibility) */
+    .note textarea{
+      font-size:16px; /* was 14px */
+      line-height:1.4; /* keep your current rhythm */
+    }
+
+    /* 2) Segmented controls: darker active in LIGHT MODE with white text */
+    /* Text align segmented control */
+    @media (prefers-color-scheme: light){
+      .segA button.active{
+        background:#111;      /* near‑black */
+        border-color:#111;
+        color:#fff;           /* white text */
+      }
+    }
+
+    /* Text size segmented control */
+    @media (prefers-color-scheme: light){
+      .sizeSeg .seg button.active{
+        background:#111;
+        border-color:#111;
+        color:#fff;
+      }
+    }
+
+    /* (optional) Hover should NOT change color when active */
+    .sega button.active:hover,
+    .sizeSeg .seg button.active:hover{
+      background:inherit;
+      color:inherit;
+    }
+
+
   </style>
 </head>
 <body>
@@ -317,7 +435,26 @@
             <button type="button" aria-pressed="false" data-value="right" title="Right"><span class="material-symbols-rounded">format_align_right</span></button>
           </div>
         </div>
-      </div>
+        <!--
+        <div class="noteSize" id="noteSize">
+        <span style="font-size:13px;color:var(--muted);">Sticky note size</span>
+        <div class="opts" role="group" aria-label="Sticky note size">
+          <button type="button" class="noteOpt x3x3" data-size="3x3" aria-pressed="true">
+            <strong>Classic</strong><span>3×3”</span>
+          </button>
+          <button type="button" class="noteOpt x3x5" data-size="3x5" aria-pressed="false">
+            <strong>Rectangle</strong><span>3×5”</span>
+          </button>
+          <button type="button" class="noteOpt x4x4" data-size="4x4" aria-pressed="false">
+            <strong>Large</strong><span>4×4”</span>
+          </button>
+          <button type="button" class="noteOpt x4x6" data-size="4x6" aria-pressed="false">
+            <strong>Large Rectangle</strong><span>4×6”</span>
+          </button>
+        </div>
+        </div>
+          -->
+    </div>
 
       <div class="card">
         <h2>CSV Import</h2>
@@ -486,6 +623,27 @@
 
   // init
   for(let i=0;i<6;i++) addNote(''); placeAdder();
+
+
+  (function(){
+    window.stickyNoteSize = '3x3'; // default
+
+    const group = document.querySelector('#noteSize .opts');
+    if(!group) return;
+
+    function setSize(val){
+      window.stickyNoteSize = val;
+      group.querySelectorAll('.noteOpt').forEach(btn=>{
+        btn.setAttribute('aria-pressed', btn.dataset.size === val ? 'true' : 'false');
+      });
+    }
+
+    group.addEventListener('click', (e)=>{
+      const btn = e.target.closest('.noteOpt');
+      if(!btn) return;
+      setSize(btn.dataset.size);
+    });
+  })();
 
   // header actions
   document.getElementById('deleteAll').addEventListener('click',clearToSixBlank);
