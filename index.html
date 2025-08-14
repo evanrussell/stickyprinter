@@ -58,7 +58,7 @@
 
     /* Buttons */
     button.primary{
-      border:1px solid transparent;padding:10px 14px;border-radius:10px;cursor:pointer;background:var(--blue);color:#fff;font-weight:700;font-size:14px;
+      border:1px solid transparent;padding:10px 14px;border-radius:10px;cursor:pointer;background:#171717;color:#FAFAFA;font-weight:700;font-size:14px;
       display:inline-flex;align-items:center;gap:8px;justify-content:center
     }
     button.primary[disabled]{opacity:.55;cursor:not-allowed}
@@ -67,6 +67,7 @@
     }
     @media (prefers-color-scheme: dark){
       button.secondary{background:#1a1b1e;color:#e5e7eb;border-color:#2a2d33}
+      button.primary{background: #FAFAFA;color:#1a1b1e;}
     }
     button.secondary[disabled]{opacity:.55;cursor:not-allowed}
 
@@ -560,7 +561,7 @@
             <li>Type your sticky notes here, or upload a CSV (each cell becomes one note).</li>
             <li>Select <strong>Generate PDF</strong> to make your printable notes file.</li>
             <li>
-              Download and print the <a href="/templates/3x3-sticky-placement-guide.pdf" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">placement guide</a>.
+              Download and print the <a id="placementGuideLink" href="/templates/3x3-sticky-placement.pdf" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">placement guide</a>.
               You’ll need <strong><span id="guidesCount">1</span> placement guide(s)</strong> for your 
               <span id="notesSoFar">0</span> notes.
             </li>
@@ -617,6 +618,53 @@
   }
   const LIMITS={"20":72,"24":56,"32":30,"36":20,"auto":72};
   const MAX_NOTES=300;
+
+  // Letter page
+  const PT = 72, PAGE = { w: 8.5 * PT, h: 11 * PT };
+
+  // Layout specs per size
+  const LAYOUTS = {
+    "3x3": {
+      sticky: { w: 3 * PT, h: 3 * PT },                // 216 × 216
+      margins: { left: 54, right: 54, top: 36, bottom: 36 },
+      gap: { col: 72, row: 36 },
+      columns: 2, rows: 3, perPage: 6
+    },
+    "3x5": {
+      sticky: { w: 360, h: 216 },
+      margins: { left: 126, right: 126, top: 36, bottom: 36 },
+      gap: { col: 0, row: 36 },
+      columns: 1, rows: 3, perPage: 3
+    },
+    "4x4": {
+      sticky: { w: 288, h: 288 },
+      margins: { left: 162, right: 162, top: 72, bottom: 72 },
+      gap: { col: 0, row: 72 },
+      columns: 1, rows: 2, perPage: 2
+    },
+    "4x6": {
+      sticky: { w: 432, h: 288 },
+      margins: { left: 90, right: 90, top: 72, bottom: 72 },
+      gap: { col: 0, row: 72 },
+      columns: 1, rows: 2, perPage: 2
+    }
+  };
+
+  const INNER_PAD = 10;
+
+  function slotRectsFor(sizeKey){
+    const L = LAYOUTS[sizeKey] || LAYOUTS["3x3"];
+    const rects = [];
+    for(let r = L.rows - 1; r >= 0; r--){
+      for(let c = 0; c < L.columns; c++){
+        const x = L.margins.left + c * (L.sticky.w + (L.gap.col || 0));
+        const y = L.margins.bottom + r * (L.sticky.h + L.gap.row);
+        rects.push({ x, y, w: L.sticky.w, h: L.sticky.h });
+      }
+    }
+    return rects;
+  }
+
 
   // --- UI state ---
   const notesEl=document.getElementById('notes');
@@ -699,6 +747,22 @@
   // init
   for(let i=0;i<6;i++) addNote(''); placeAdder();
 
+  const GUIDE_LINKS = {
+  "3x3": "/templates/3x3-sticky-placement-guide.pdf",
+  "3x5": "/templates/3x5-sticky-placement-guide.pdf",
+  "4x4": "/templates/4x4-sticky-placement-guide.pdf",
+  "4x6": "/templates/4x6-sticky-placement-guide.pdf"
+};
+
+function updatePlacementGuideLink(){
+  const a = document.getElementById('placementGuideLink');
+  if(!a) return;
+  const key = (window.stickyNoteSize || '3x3');
+  a.href = GUIDE_LINKS[key] || GUIDE_LINKS["3x3"];
+}
+
+// after your initial setup:
+updatePlacementGuideLink();
 
 
   (function(){
@@ -710,6 +774,9 @@
 
     function setSize(val){
       window.stickyNoteSize = val;
+      updateGuidesHint();
+      updatePlacementGuideLink && updatePlacementGuideLink();
+
       group.querySelectorAll('[role="radio"]').forEach(el=>{
         const checked = el.getAttribute('data-size')===val;
         el.setAttribute('aria-checked', checked ? 'true' : 'false');
@@ -850,61 +917,118 @@
   });
 
   // Generate PDF
-  document.getElementById('gen').addEventListener('click',async()=>{
+  document.getElementById('gen').addEventListener('click', async () => {
     const { PDFDocument, StandardFonts } = PDFLib;
-    const pdf=await PDFDocument.create();
-    const interBytes=await fetch("https://fonts.gstatic.com/s/inter/v13/UcCO3Fwr0Cwy8O4N4t6hlvZrQ4Y.woff2").then(r=>r.arrayBuffer()).catch(()=>null);
-    let font=null; if(interBytes){ try{ font=await pdf.embedFont(interBytes,{subset:true}); } catch{ font=await pdf.embedFont(StandardFonts.HelveticaBold); } }
-    else { font=await pdf.embedFont(StandardFonts.HelveticaBold); }
+    const pdf = await PDFDocument.create();
 
-    const sizeSel=document.getElementById('size').value; const rects=slotRects();
-    const all=inputs.map(n=>n.input.value);
+    // Font (unchanged from your version)
+    const interBytes = await fetch("https://fonts.gstatic.com/s/inter/v13/UcCO3Fwr0Cwy8O4N4t6hlvZrQ4Y.woff2").then(r=>r.arrayBuffer()).catch(()=>null);
+    let font = null;
+    if(interBytes){
+      try { font = await pdf.embedFont(interBytes, { subset:true }); }
+      catch { font = await pdf.embedFont(StandardFonts.HelveticaBold); }
+    } else {
+      font = await pdf.embedFont(StandardFonts.HelveticaBold);
+    }
 
+    // helpers (unchanged)
     function wrapParagraph(text,font,fontSize,maxWidth){
       const words=(text||'').toString().split(/\s+/); const lines=[]; let line='';
-      for(const w of words){ const test=line?line+' '+w:w; const width=font.widthOfTextAtSize(test,fontSize);
+      for(const w of words){
+        const test=line?line+' '+w:w; const width=font.widthOfTextAtSize(test,fontSize);
         if(width<=maxWidth) line=test;
-        else{ if(line) lines.push(line);
-          if(font.widthOfTextAtSize(w,fontSize)>maxWidth){ let cur=''; for(const ch of w){ if(font.widthOfTextAtSize(cur+ch,fontSize)<=maxWidth) cur+=ch; else{ if(cur) lines.push(cur); cur=ch; } } line=cur; }
-          else line=w;
+        else{
+          if(line) lines.push(line);
+          if(font.widthOfTextAtSize(w,fontSize)>maxWidth){
+            let cur=''; for(const ch of w){
+              if(font.widthOfTextAtSize(cur+ch,fontSize)<=maxWidth) cur+=ch;
+              else{ if(cur) lines.push(cur); cur=ch; }
+            } line=cur;
+          } else line=w;
         }
-      } if(line) lines.push(line); return lines;
+      }
+      if(line) lines.push(line); return lines;
     }
     function wrapTextByWidthPreserveBreaks(text,font,fontSize,maxWidth){
       const paras=(text||'').toString().split(/\r?\n/); const out=[];
       paras.forEach((p,i)=>{ out.push(...wrapParagraph(p,font,fontSize,maxWidth)); if(i<paras.length-1) out.push(''); }); return out;
     }
+
+    // layout selection
+    const sizeKey = (window.stickyNoteSize || '3x3');
+    const L = LAYOUTS[sizeKey] || LAYOUTS['3x3'];
+    const rects = slotRectsFor(sizeKey);
+
+    // sizing + fit helpers
     function fitsBox(text,font,fontSize){
-      const boxW=STICKY.w-INNER_PAD*2, boxH=STICKY.h-INNER_PAD*2; const lines=wrapTextByWidthPreserveBreaks(text,font,fontSize,boxW); const lh=fontSize*1.2; return (lines.length*lh)<=boxH;
+      const boxW = L.sticky.w - INNER_PAD*2, boxH = L.sticky.h - INNER_PAD*2;
+      const lines = wrapTextByWidthPreserveBreaks(text,font,fontSize,boxW);
+      const lh = fontSize*1.2;
+      return (lines.length*lh) <= boxH;
     }
     function pickAutoSize(text,font){
-      const order=[36,32,24,20]; const t=(text||'').toString().slice(0,72);
-      for(const fs of order) if(fitsBox(t,font,fs)) return {size:fs,text:t}; return {size:20,text:t};
+      // Try from largest down
+      const order = [36, 24, 20];
+      const t = (text||'').toString().slice(0, 72);
+      for(const fs of order) if(fitsBox(t,font,fs)) return { size:fs, text:t };
+      return { size:20, text:t };
     }
 
-    for(let i=0;i<all.length;i+=6){
-      const page=pdf.addPage([PAGE.w,PAGE.h]); const notes=all.slice(i,i+6);
-      notes.forEach((text,idx)=>{
-        const box=rects[idx]; let t=(text??'').toString(); if(t.length===0) return;
-        let fs=sizeSel==='auto'?null:parseInt(sizeSel,10);
-        const cap=LIMITS[sizeSel]||72; t=t.slice(0,cap);
-        if(sizeSel==='auto'){ const pick=pickAutoSize(t,font); fs=pick.size; t=pick.text; }
-        if(sizeSel!=='auto' && !fitsBox(t,font,fs)){ for(const tryFs of [36,32,24,20]){ if(tryFs<=fs && fitsBox(t,font,tryFs)){ fs=tryFs; break; } } }
+    const sizeSel = document.getElementById('size').value;
+    const all = inputs.map(n=>n.input.value);
+    const perPage = L.perPage;
 
-        const boxW=box.w-INNER_PAD*2; const lines=wrapTextByWidthPreserveBreaks(t,font,fs,boxW); const lh=fs*1.2;
-        if(alignMode==='center'){
-          const totalH=lines.length*lh; const yStart=box.y+(box.h-totalH)/2+(lines.length-1)*lh;
-          lines.forEach((ln,k)=>{ const w=font.widthOfTextAtSize(ln,fs); const x=box.x+(box.w-w)/2; const y=yStart-k*lh; page.drawText(ln,{x,y,size:fs,font}); });
-        } else if(alignMode==='left'){
-          let y=box.y+box.h-INNER_PAD-fs; const x=box.x+INNER_PAD; lines.forEach((ln,k)=>{ page.drawText(ln,{x,y:y-k*lh,size:fs,font}); });
-        } else {
-          let y=box.y+box.h-INNER_PAD-fs; lines.forEach((ln,k)=>{ const w=font.widthOfTextAtSize(ln,fs); const x=box.x+box.w-INNER_PAD-w; const yy=y-k*lh; page.drawText(ln,{x,y:yy,size:fs,font}); });
+    for(let i=0; i<all.length; i+=perPage){
+      const page = pdf.addPage([PAGE.w, PAGE.h]);
+      const notes = all.slice(i, i+perPage);
+
+      notes.forEach((text, idx) => {
+        const box = rects[idx];
+        let t = (text ?? '').toString();
+        if(t.length === 0) return;
+
+        let fs = sizeSel === 'auto' ? null : parseInt(sizeSel, 10);
+        const cap = LIMITS[sizeSel] || 72;
+        t = t.slice(0, cap);
+
+        if(sizeSel === 'auto'){ const pick = pickAutoSize(t, font); fs = pick.size; t = pick.text; }
+        else if(!fitsBox(t, font, fs)){
+          for(const tryFs of [36, 24, 20]){ if(tryFs <= fs && fitsBox(t, font, tryFs)){ fs = tryFs; break; } }
+        }
+
+        const boxW = L.sticky.w - INNER_PAD*2;
+        const lines = wrapTextByWidthPreserveBreaks(t, font, fs, boxW);
+        const lh = fs * 1.2;
+
+        if(alignMode === 'center'){
+          const totalH = lines.length * lh;
+          const yStart = box.y + (L.sticky.h - totalH)/2 + (lines.length - 1)*lh;
+          lines.forEach((ln, k) => {
+            const w = font.widthOfTextAtSize(ln, fs);
+            const x = box.x + (L.sticky.w - w) / 2;
+            const y = yStart - k*lh;
+            page.drawText(ln, { x, y, size: fs, font });
+          });
+        } else if(alignMode === 'left'){
+          let y = box.y + L.sticky.h - INNER_PAD - fs;
+          const x = box.x + INNER_PAD;
+          lines.forEach((ln, k) => page.drawText(ln, { x, y: y - k*lh, size: fs, font }));
+        } else { // right
+          let y = box.y + L.sticky.h - INNER_PAD - fs;
+          lines.forEach((ln, k) => {
+            const w = font.widthOfTextAtSize(ln, fs);
+            const x = box.x + L.sticky.w - INNER_PAD - w;
+            page.drawText(ln, { x, y: y - k*lh, size: fs, font });
+          });
         }
       });
     }
 
-    const bytes=await pdf.save(); const blob=new Blob([bytes],{type:'application/pdf'});
-    const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='sticky-notes.pdf'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),10000);
+    const bytes = await pdf.save();
+    const blob = new Blob([bytes], { type:'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'sticky-notes.pdf'; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
   });
 
   // Keep the guides count accurate at init
