@@ -610,12 +610,6 @@
   <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
 
   <script>
-  const PT=72,PAGE={w:8.5*PT,h:11*PT},MARGINS={top:36,bottom:36,left:54,right:54},STICKY={w:3*PT,h:3*PT},GAP={col:72,row:36},INNER_PAD=10;
-  function slotRects(){
-    const xs=[MARGINS.left,MARGINS.left+STICKY.w+GAP.col];
-    const ys=[MARGINS.bottom,MARGINS.bottom+STICKY.h+GAP.row,MARGINS.bottom+(STICKY.h+GAP.row)*2];
-    const rects=[]; for(let r=2;r>=0;r--){ for(let c=0;c<2;c++){ rects.push({x:xs[c],y:ys[r],w:STICKY.w,h:STICKY.h}); } } return rects;
-  }
   const LIMITS={"20":72,"24":56,"32":30,"36":20,"auto":72};
   const MAX_NOTES=300;
 
