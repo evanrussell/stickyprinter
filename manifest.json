@@ -1,0 +1,21 @@
+{
+  "name": "Printable Sticky Note PDF Generator",
+  "short_name": "Sticky Printer",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F3F4F6",
+  "theme_color": "#F3F4F6",
+  "description": "Generate perfectly aligned PDFs to print sticky notes.",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

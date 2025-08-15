@@ -7,6 +7,11 @@
   <!-- HTML Meta Tags -->
   <meta name="description" content="Generate perfectly aligned PDFs to print text on your sticky notes.">
 
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#F3F4F6" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0A0A0A" media="(prefers-color-scheme: dark)">
+
+
   <!-- Facebook Meta Tags -->
   <meta property="og:url" content="https://stickyprinter.app">
   <meta property="og:type" content="website">
@@ -394,6 +399,86 @@
     }
 
 
+    /* Consistent focus highlight for entry fields (inputs + textareas) */
+    input[type="text"],
+    input[type="search"],
+    input[type="email"],
+    input[type="url"],
+    input[type="number"],
+    textarea {
+      outline: none;
+      box-shadow: none;
+      transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+    }
+
+    /* Base border */
+    input[type="text"],
+    input[type="search"],
+    input[type="email"],
+    input[type="url"],
+    input[type="number"],
+    textarea {
+      border: 1px solid var(--border);
+      background: var(--input);
+      color: var(--ink);
+      outline: none;
+
+    }
+
+    /* LIGHT MODE: black focus ring */
+    @media (prefers-color-scheme: light) {
+      input[type="text"]:focus-visible,
+      input[type="search"]:focus-visible,
+      input[type="email"]:focus-visible,
+      input[type="url"]:focus-visible,
+      input[type="number"]:focus-visible,
+      textarea:focus-visible {
+        border-color: #0A0A0A;
+        outline: 1px solid #0A0A0A;
+      }
+    }
+
+    /* DARK MODE: white focus ring (#F3F4F6) */
+    @media (prefers-color-scheme: dark) {
+      input[type="text"]:focus-visible,
+      input[type="search"]:focus-visible,
+      input[type="email"]:focus-visible,
+      input[type="url"]:focus-visible,
+      input[type="number"]:focus-visible,
+      textarea:focus-visible {
+        border-color: #F3F4F6;
+        outline: 1px solid #F3F4F6;     
+      }
+    }
+
+    /* Override Chrome/Safari autofill yellow/blue background so our highlight wins */
+    input:-webkit-autofill,
+    textarea:-webkit-autofill {
+      -webkit-text-fill-color: var(--ink);
+      transition: background-color 9999s ease-out, color 9999s ease-out; /* trick to suppress tint flash */
+    }
+    @media (prefers-color-scheme: light) {
+      input:-webkit-autofill,
+      textarea:-webkit-autofill {
+        box-shadow: 0 0 0px 1000px var(--input) inset;           /* keep your field bg */
+        border: 1px solid #0A0A0A;                               /* match light focus */
+      }
+    }
+    @media (prefers-color-scheme: dark) {
+      input:-webkit-autofill,
+      textarea:-webkit-autofill {
+        box-shadow: 0 0 0px 1000px var(--input) inset;
+        border: 1px solid #F3F4F6;                               /* match dark focus */
+      }
+    }
+    
+    @media (prefers-color-scheme: light) { textarea, input { caret-color:#0A0A0A; } }
+    @media (prefers-color-scheme: dark)  { textarea, input { caret-color:#F3F4F6; } }
+
+    /* Improve tap highlight on iOS */
+    * { -webkit-tap-highlight-color: rgba(0,0,0,0); }
+
+
   </style>
 </head>
 <body>
@@ -401,7 +486,7 @@
     <div class="brand"><span class="material-symbols-rounded" aria-hidden="true">note_stack</span></div>
     <div class="head">
       <h1>stickyprinter.app</h1>
-      <div class="sub">Generate printable PDF templates for 3x3" sticky notes. Create each note individually or import multiple notes via CSV file.</div>
+      <div class="sub">Generate perfectly aligned PDFs to print text on your sticky notes. Create notes individually or import multiple notes via CSV file.</div>
     </div>
   </header>
 
