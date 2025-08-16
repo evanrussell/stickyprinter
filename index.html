@@ -710,39 +710,47 @@
   const LIMITS={"20":72,"24":56,"32":30,"36":20,"auto":72};
   const MAX_NOTES=300;
 
-  // Letter page
-  const PT = 72, PAGE = { w: 8.5 * PT, h: 11 * PT };
+  // Letter page units
+  const PT = 72;
+  const PAGE = { w: 8.5 * PT, h: 11 * PT };
+  const INNER_PAD = 10;
 
-  // Layout specs per size
+  // --- UPDATED layouts for printing notes (match your new placement guides) ---
   const LAYOUTS = {
+    // 3×3: 216×216, margins T/B 36, L 54, R 90, gaps 36, 2 across × 3 rows (6/page)
     "3x3": {
-      sticky: { w: 3 * PT, h: 3 * PT },                // 216 × 216
-      margins: { left: 54, right: 54, top: 36, bottom: 36 },
-      gap: { col: 72, row: 36 },
+      sticky:  { w: 216, h: 216 },
+      margins: { top: 36, bottom: 36, left: 54, right: 90 },
+      gap:     { col: 36, row: 36 },
       columns: 2, rows: 3, perPage: 6
     },
+
+    // 3×5: 360×216, margins T/B 36, L/R 126, row gap 36, 3 per page (single column)
     "3x5": {
-      sticky: { w: 360, h: 216 },
-      margins: { left: 126, right: 126, top: 36, bottom: 36 },
-      gap: { col: 0, row: 36 },
+      sticky:  { w: 360, h: 216 },
+      margins: { top: 36, bottom: 36, left: 126, right: 126 },
+      gap:     { col: 0, row: 36 },
       columns: 1, rows: 3, perPage: 3
     },
+
+    // 4×4: 288×288, margins T 72, B 108, L/R 162, row gap 36, 2 per page (single column)
     "4x4": {
-      sticky: { w: 288, h: 288 },
-      margins: { left: 162, right: 162, top: 72, bottom: 72 },
-      gap: { col: 0, row: 72 },
+      sticky:  { w: 288, h: 288 },
+      margins: { top: 72, bottom: 108, left: 162, right: 162 },
+      gap:     { col: 0, row: 36 },
       columns: 1, rows: 2, perPage: 2
     },
+
+    // 4×6: 432×288, margins T 72, B 108, L/R 90, row gap 36, 2 per page (single column)
     "4x6": {
-      sticky: { w: 432, h: 288 },
-      margins: { left: 90, right: 90, top: 72, bottom: 72 },
-      gap: { col: 0, row: 72 },
+      sticky:  { w: 432, h: 288 },
+      margins: { top: 72, bottom: 108, left: 90, right: 90 },
+      gap:     { col: 0, row: 36 },
       columns: 1, rows: 2, perPage: 2
     }
   };
 
-  const INNER_PAD = 10;
-
+  // Compute sticky rects for the current size
   function slotRectsFor(sizeKey){
     const L = LAYOUTS[sizeKey] || LAYOUTS["3x3"];
     const rects = [];
@@ -755,6 +763,25 @@
     }
     return rects;
   }
+
+  const GUIDE_INNER_PAD = 10; // 10pt inner text margin
+
+  function guideRectsFor(sizeKey){
+    const G = GUIDE_LAYOUTS[sizeKey] || GUIDE_LAYOUTS["3x3"];
+    const rects = [];
+    // Build in visual order: from top rows down (so index 0 is top-left)
+    for(let r = 0; r < G.rows; r++){
+      for(let c = 0; c < G.columns; c++){
+        const x = G.margins.left + c * (G.sticky.w + (G.gap.col || 0));
+        // pdf-lib origin is bottom-left; compute y from bottom margin upward
+        const y = G.margins.bottom + (G.rows - 1 - r) * (G.sticky.h + G.gap.row);
+        rects.push({ x, y, w: G.sticky.w, h: G.sticky.h });
+      }
+    }
+    return rects;
+  }
+
+
 
 
   // --- UI state ---
@@ -1091,27 +1118,44 @@ updatePlacementGuideLink();
         const lines = wrapTextByWidthPreserveBreaks(t, font, fs, boxW);
         const lh = fs * 1.2;
 
-        if(alignMode === 'center'){
-          const totalH = lines.length * lh;
-          const yStart = box.y + (L.sticky.h - totalH)/2 + (lines.length - 1)*lh;
-          lines.forEach((ln, k) => {
-            const w = font.widthOfTextAtSize(ln, fs);
-            const x = box.x + (L.sticky.w - w) / 2;
-            const y = yStart - k*lh;
-            page.drawText(ln, { x, y, size: fs, font });
-          });
-        } else if(alignMode === 'left'){
-          let y = box.y + L.sticky.h - INNER_PAD - fs;
-          const x = box.x + INNER_PAD;
-          lines.forEach((ln, k) => page.drawText(ln, { x, y: y - k*lh, size: fs, font }));
-        } else { // right
-          let y = box.y + L.sticky.h - INNER_PAD - fs;
-          lines.forEach((ln, k) => {
-            const w = font.widthOfTextAtSize(ln, fs);
-            const x = box.x + L.sticky.w - INNER_PAD - w;
-            page.drawText(ln, { x, y: y - k*lh, size: fs, font });
-          });
-        }
+    if (alignMode === 'center') {
+      // Center inside the inner box (respects 10pt margins)
+      const innerX = box.x + INNER_PAD;
+      const innerY = box.y + INNER_PAD;
+      const innerW = L.sticky.w - INNER_PAD * 2;
+      const innerH = L.sticky.h - INNER_PAD * 2;
+
+      const totalH = lines.length * lh;
+
+      // Try to use real ascent if available; otherwise a solid fallback
+      const ascent = (typeof font.ascentAtSize === 'function')
+        ? font.ascentAtSize(fs)
+        : fs * 0.8; // Helvetica-ish ascent approximation
+
+      // Baseline of the first line so the whole block is vertically centered
+      // Center point = innerY + innerH/2
+      // Top of first line (approx) = baseline + (-ascent)
+      // => baseline = center + totalH/2 - ascent
+      const firstBaseline = innerY + (innerH / 2) + (totalH / 2) - ascent;
+
+      lines.forEach((ln, k) => {
+        const w = font.widthOfTextAtSize(ln, fs);
+        const x = innerX + Math.max(0, (innerW - w) / 2); // horizontal center within inner box
+        const y = firstBaseline - k * lh;
+        page.drawText(ln, { x, y, size: fs, font });
+      });
+    } else if (alignMode === 'left') {
+      const x = box.x + INNER_PAD;
+      const yTop = box.y + L.sticky.h - INNER_PAD - fs; // top-inset start
+      lines.forEach((ln, k) => page.drawText(ln, { x, y: yTop - k * lh, size: fs, font }));
+    } else { // right
+      const xRight = box.x + L.sticky.w - INNER_PAD;
+      const yTop = box.y + L.sticky.h - INNER_PAD - fs;
+      lines.forEach((ln, k) => {
+        const w = font.widthOfTextAtSize(ln, fs);
+        page.drawText(ln, { x: xRight - w, y: yTop - k * lh, size: fs, font });
+      });
+    }
       });
     }
 
@@ -1139,6 +1183,7 @@ updatePlacementGuideLink();
     // initialize on load (in case the page is refreshed mid-scroll)
     onScroll();
   })();
+  
   </script>
 </body>
 </html>
