@@ -88,6 +88,28 @@
     }
     button.secondary[disabled]{opacity:.55;cursor:not-allowed}
 
+    /* Text-only action under Generate PDF */
+    .text-action {
+      background: transparent;
+      border: 0;
+      padding: 8px 0 16px 0;
+      font-family: "Inter", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+      display: block;
+      text-align: center; 
+    }
+
+    /* Light / Dark colors */
+    @media (prefers-color-scheme: light) {
+      .text-action { color: #1A1B1E; }
+    }
+    @media (prefers-color-scheme: dark) {
+      .text-action { color: #FAFAFA; }
+    }
+
     /* File upload */
     .file-upload{position:relative;display:inline-block}
     .file-upload input[type="file"]{position:absolute;left:0;top:0;opacity:0;width:100%;height:100%;cursor:pointer}
@@ -650,6 +672,11 @@
         <button id="gen" class="primary"><span class="material-symbols-rounded" aria-hidden="true">download</span>Generate PDF</button>
       </div>
 
+
+      <a id="guideDownloadBtn" class="text-action" href="/templates/3x3-sticky-placement-guide.pdf" download>
+        Download Placement Guides
+      </a>
+
       <div class="card">
         <details id="inst" style="font-size:13px;color:var(--muted);line-height:1.5" closed>
           <summary style="cursor:pointer;font-weight:800;color:var(--ink)">Instructions</summary>
@@ -871,12 +898,19 @@
   "4x6": "/templates/4x6-sticky-placement-guide.pdf"
 };
 
-function updatePlacementGuideLink(){
-  const a = document.getElementById('placementGuideLink');
-  if(!a) return;
-  const key = (window.stickyNoteSize || '3x3');
-  a.href = GUIDE_LINKS[key] || GUIDE_LINKS["3x3"];
-}
+  function updatePlacementGuideLink(){
+    const key = (window.stickyNoteSize || '3x3');
+    const href = GUIDE_LINKS[key] || GUIDE_LINKS["3x3"];
+
+    const a1 = document.getElementById('placementGuideLink'); // in Instructions
+    if (a1) a1.href = href;
+
+    const a2 = document.getElementById('guideDownloadBtn');   // new text-only action
+    if (a2) {
+      a2.href = href;
+      a2.setAttribute('download', href.split('/').pop());      // ensures download behavior
+    }
+  }
 
 // after your initial setup:
 updatePlacementGuideLink();
